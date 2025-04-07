@@ -2,6 +2,7 @@
 #define CHACHA20_H
 
 typedef unsigned int u32;
+typedef unsigned int u64;
 typedef unsigned char u8;
 
 typedef union {

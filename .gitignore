@@ -4,3 +4,4 @@ answer/
 chacha20_baremetal*
 chacha20_linux*
 xs-emu
+.vscode

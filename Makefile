@@ -4,7 +4,8 @@ CROSS_CC := $(CROSS_COMPILE)gcc
 CROSS_LD := $(CROSS_COMPILE)ld
 CROSS_OBJCOPY := $(CROSS_COMPILE)objcopy
 CFLAGS := -O3 -Ilib -Isrc -fno-builtin -static
-CROSS_CFLAGS := -march=rv64gc -mcmodel=medany
+ARCH := rv64gcv_zbb_zvbb
+CROSS_CFLAGS := -march=${ARCH} -mcmodel=medany
 BAREMETAL_CFLAGS := -nostdlib
 BENCH_LEN := 256
 
@@ -61,8 +62,16 @@ clean:
 validate: chacha20_linux-$(BENCH_LEN) answer/$(BENCH_LEN).txt
 	@$(LOADER) ./chacha20_linux-$(BENCH_LEN) | tail -n 16 | diff answer/$(BENCH_LEN).txt - && echo "Test passed"
 
+validate-out: chacha20_linux-$(BENCH_LEN) answer/$(BENCH_LEN).txt
+	@$(LOADER) ./chacha20_linux-$(BENCH_LEN)
+
 validate-rtl: xs-emu chacha20_baremetal-$(BENCH_LEN).bin answer/$(BENCH_LEN).txt
 	./xs-emu -i ./chacha20_baremetal-$(BENCH_LEN).bin --no-diff 2>/dev/null | grep "ans\[" | diff answer/$(BENCH_LEN).txt - && echo "Test passed"
 
 run: xs-emu chacha20_baremetal-$(BENCH_LEN).bin
 	./xs-emu -i ./chacha20_baremetal-$(BENCH_LEN).bin --no-diff 2>/dev/null
+
+src/chacha20.s: src/host/chacha20_mod.c
+	riscv64-linux-gnu-gcc -O3 -nostdlib -fno-builtin -march=$(ARCH) -Isrc -S -fverbose-asm src/host/chacha20_mod.c -o src/chacha20.s
+
+# -nostdlib -fno-builtin不调用标准库函数，不使用内建函数如memcpy
