@@ -108,7 +108,7 @@ const u32 rev_assign[4][4] = {
 };
 
 #ifdef PLAN3
-inline void full_quarterround(u32 *x) {
+inline void full_quarterround(u32 *input, u32 *output) {
     // 循环10次
     // QUARTERROUND(0, 4, 8, 12);
     // QUARTERROUND(1, 5, 9, 13);
@@ -121,7 +121,7 @@ inline void full_quarterround(u32 *x) {
     // QUARTERROUND(3, 4, 9, 14);
 
     asm(
-        "move a0, %[x]\n" // a0 = &x[0], 数组地址
+        "move a0, %[input]\n" // a0 = &x[0], 数组地址
         "vle32.v v0, (a0)\n" // 32-bit unit-stride load, load x[a]
         "addi a0, a0, 16\n" // 增加128bit地址计数
         "vle32.v v1, (a0)\n" // load x[b]
@@ -129,6 +129,11 @@ inline void full_quarterround(u32 *x) {
         "vle32.v v2, (a0)\n" // load x[c]
         "addi a0, a0, 16\n"
         "vle32.v v3, (a0)\n" // load x[d]
+
+        "vmv.v.v v16, v0\n" // 备份 x[a]
+        "vmv.v.v v17, v1\n" // 备份 x[b]
+        "vmv.v.v v18, v2\n" // 备份 x[c]
+        "vmv.v.v v19, v3\n" // 备份 x[d]
 
         // 提前加载 ROTATE 的标量参数
         "li a0, 16\n"
@@ -202,7 +207,12 @@ inline void full_quarterround(u32 *x) {
         "bnez t0, loop\n" // if (t0 != 0) goto loop
         // 结束循环
 
-        "move a0, %[x]\n"
+        "vadd.vv v0, v0, v16\n" // x[i] + input[i];
+        "vadd.vv v1, v1, v17\n"
+        "vadd.vv v2, v2, v18\n"
+        "vadd.vv v3, v3, v19\n"
+
+        "move a0, %[output]\n"
         "vse32.v v0, (a0)\n" // Store x[a]
         "addi a0, a0, 16\n"
         "vse32.v v1, (a0)\n" // Store x[b]
@@ -212,7 +222,7 @@ inline void full_quarterround(u32 *x) {
         "vse32.v v3, (a0)\n" // Store x[d]
         
         :
-        : [x] "r"(x), 
+        : [input] "r"(input), [output] "r"(output),
             [assign0] "r"(assign[0]), [assign1] "r"(assign[1]), [assign2] "r"(assign[2]), [assign3] "r"(assign[3]),
             [rassign0] "r"(rev_assign[0]), [rassign1] "r"(rev_assign[1]), [rassign2] "r"(rev_assign[2]), [rassign3] "r"(rev_assign[3])
         : "t0", "a0", "a1", "a2", "a3", 
@@ -238,14 +248,14 @@ void chacha20(chacha_buf *output, const u32 input[16])
         }
     #endif
 
-    u32 x[16];
-    int i;
-
-    for (int i = 0; i < 16; i++) {
-        x[i] = input[i];
-    }
-
     #ifndef PLAN3
+        u32 x[16];
+        int i;
+
+        for (int i = 0; i < 16; i++) {
+            x[i] = input[i];
+        }
+
         // 运行10次
         for (i = 20; i > 0; i -= 2) {
             #ifdef PLAN2
@@ -262,11 +272,12 @@ void chacha20(chacha_buf *output, const u32 input[16])
             QUARTERROUND(2, 7, 8, 13);
             QUARTERROUND(3, 4, 9, 14);
         }
+
+        for (i = 0; i < 16; ++i)
+            output->u[i] = x[i] + input[i];
     #else
-        full_quarterround(x);
+        full_quarterround(input, output->u);
     #endif
 
 
-    for (i = 0; i < 16; ++i)
-        output->u[i] = x[i] + input[i];
 }
