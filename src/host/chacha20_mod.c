@@ -11,7 +11,7 @@
 
 #include <chacha20.h>
 
-#define PLAN2
+#define PLAN3
 
 #ifndef PLAN1
 #define ROTATE(v, n) (((v) << (n)) | ((v) >> (32 - (n))))
@@ -120,7 +120,6 @@ inline void full_quarterround(u32 *x) {
     // QUARTERROUND(2, 7, 8, 13);
     // QUARTERROUND(3, 4, 9, 14);
 
-
     asm(
         "move a0, %[x]\n" // a0 = &x[0], 数组地址
         "vle32.v v0, (a0)\n" // 32-bit unit-stride load, load x[a]
@@ -138,24 +137,16 @@ inline void full_quarterround(u32 *x) {
         "li a3, 7\n"
 
         // 提前加载正向 gather 向量寄存器
-        "li t0, %[assign0]\n" // assign[0]
-        "vle32.v v4, (t0)\n"
-        "li t0, %[assign1]\n" // assign[1]
-        "vle32.v v5, (t0)\n"
-        "li t0, %[assign2]\n" // assign[2]
-        "vle32.v v6, (t0)\n"
-        "li t0, %[assign3]\n" // assign[3]
-        "vle32.v v7, (t0)\n"
+        "vle32.v v4, (%[assign0])\n"
+        "vle32.v v5, (%[assign1])\n"
+        "vle32.v v6, (%[assign2])\n"
+        "vle32.v v7, (%[assign3])\n"
 
         // 提前加载反向 gather 向量寄存器
-        "li t0, %[rassign0]\n" // rev_assign[0]
-        "vle32.v v8, (t0)\n"
-        "li t0, %[rassign1]\n" // rev_assign[1]
-        "vle32.v v9, (t0)\n"
-        "li t0, %[rassign2]\n" // rev_assign[2]
-        "vle32.v v10, (t0)\n"
-        "li t0, %[rassign3]\n" // rev_assign[3]
-        "vle32.v v11, (t0)\n"
+        "vle32.v v8, (%[rassign0])\n"
+        "vle32.v v9, (%[rassign1])\n"
+        "vle32.v v10, (%[rassign2])\n"
+        "vle32.v v11, (%[rassign3])\n"
 
         "li t0, 10\n" // Note: 循环
         "loop: \n"
@@ -177,35 +168,35 @@ inline void full_quarterround(u32 *x) {
         "vxor.vv v1, v1, v2\n"
         "vrol.vx v1, v1, a3\n" // x[b] = ROTATE((x[b] ^ x[c]), 7)
 
-        // 正向gather
-        "vrgather.vv v0, v0, v4\n"
-        "vrgather.vv v1, v1, v5\n"
-        "vrgather.vv v2, v2, v6\n"
-        "vrgather.vv v3, v3, v7\n"
+        // 正向gather（源寄存器不可以与目的寄存器重叠）
+        "vrgather.vv v12, v0, v4\n"
+        "vrgather.vv v13, v1, v5\n"
+        "vrgather.vv v14, v2, v6\n"
+        "vrgather.vv v15, v3, v7\n"
 
         // PART2: 后 4 个 QUARTERROUND
         // repeat
-        "vadd.vv v0, v0, v1\n" // x[a] += x[b]
-        "vxor.vv v3, v3, v0\n"
-        "vrol.vx v3, v3, a0\n" // x[d] = ROTATE((x[d] ^ x[a]),16)
+        "vadd.vv v12, v12, v13\n" // x[a] += x[b]
+        "vxor.vv v15, v15, v12\n"
+        "vrol.vx v15, v15, a0\n" // x[d] = ROTATE((x[d] ^ x[a]),16)
 
-        "vadd.vv v2, v2, v3\n" // x[c] += x[d]
-        "vxor.vv v1, v1, v2\n"
-        "vrol.vx v1, v1, a1\n" // x[b] = ROTATE((x[b] ^ x[c]),12)
+        "vadd.vv v14, v14, v15\n" // x[c] += x[d]
+        "vxor.vv v13, v13, v14\n"
+        "vrol.vx v13, v13, a1\n" // x[b] = ROTATE((x[b] ^ x[c]),12)
 
-        "vadd.vv v0, v0, v1\n" // x[a] += x[b]
-        "vxor.vv v3, v3, v0\n"
-        "vrol.vx v3, v3, a2\n" // x[d] = ROTATE((x[d] ^ x[a]), 8)
+        "vadd.vv v12, v12, v13\n" // x[a] += x[b]
+        "vxor.vv v15, v15, v12\n"
+        "vrol.vx v15, v15, a2\n" // x[d] = ROTATE((x[d] ^ x[a]), 8)
 
-        "vadd.vv v2, v2, v3\n" // x[c] += x[d]
-        "vxor.vv v1, v1, v2\n"
-        "vrol.vx v1, v1, a3\n" // x[b] = ROTATE((x[b] ^ x[c]), 7)
+        "vadd.vv v14, v14, v15\n" // x[c] += x[d]
+        "vxor.vv v13, v13, v14\n"
+        "vrol.vx v13, v13, a3\n" // x[b] = ROTATE((x[b] ^ x[c]), 7)
 
         // 反向 gather
-        "vrgather.vv v0, v0, v8\n"
-        "vrgather.vv v1, v1, v9\n"
-        "vrgather.vv v2, v2, v10\n"
-        "vrgather.vv v3, v3, v11\n"
+        "vrgather.vv v0, v12, v8\n"
+        "vrgather.vv v1, v13, v9\n"
+        "vrgather.vv v2, v14, v10\n"
+        "vrgather.vv v3, v15, v11\n"
 
         "addi t0, t0, -1\n" // t0--
         "bnez t0, loop\n" // if (t0 != 0) goto loop
@@ -225,9 +216,8 @@ inline void full_quarterround(u32 *x) {
             [assign0] "r"(assign[0]), [assign1] "r"(assign[1]), [assign2] "r"(assign[2]), [assign3] "r"(assign[3]),
             [rassign0] "r"(rev_assign[0]), [rassign1] "r"(rev_assign[1]), [rassign2] "r"(rev_assign[2]), [rassign3] "r"(rev_assign[3])
         : "t0", "a0", "a1", "a2", "a3", 
-            "memory", "v0", "v1", "v2", "v3"
+            "memory"
     );
-    printf("full_quarterround done\n");
 }
 #endif
 
