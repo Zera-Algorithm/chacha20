@@ -31,17 +31,34 @@ void gen_chacha_state(u32 *state, u32 seed) {
 }
 
 void run_benchmark(u32 len, u32 seed) {
-    u32 state[16];
+    u32 state[16 * DUP];
     gen_chacha_state(state, seed);
     print_s("Initial state generated for LEN=");
     print_long(len);
     print_s(" SEED=");
     print_hex32(seed);
     unsigned long start = rdcycle();
-    for (int i = 0; i < len; i++) {
-        chacha20(&buf[i%BUF_LEN], state);
-        state[15] ++;
+
+    // 原来的代码
+    // for (int i = 0; i < len; i++) {
+    //     chacha20(&buf[i%BUF_LEN], state);
+    //     state[15] ++;
+    // }
+
+    for (int i = 1; i < DUP; i++) {
+        for (int j = 0; j < 15; j++) {
+            state[i * 16 + j] = state[j];
+        }
+        state[i * 16 + 15] = state[15] + i;
     }
+
+    for (int i = 0; i < len; i += DUP) {
+        chacha20_multi(&buf[i%BUF_LEN], state);
+        for (int j = 0; j < DUP; j++) {
+            state[j * 16 + 15] += DUP;
+        }
+    }
+
     unsigned long end = rdcycle();
     unsigned long cycles = end - start;
     print_s("Cycles: ");

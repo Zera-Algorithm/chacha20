@@ -11,5 +11,8 @@ typedef union {
 } chacha_buf;
 
 void chacha20(chacha_buf *output, const u32 input[16]);
+void chacha20_multi(chacha_buf *output, const u32 *input);
+
+#define DUP 8
 
 #endif

@@ -72,6 +72,6 @@ run: xs-emu chacha20_baremetal-$(BENCH_LEN).bin
 	./xs-emu -i ./chacha20_baremetal-$(BENCH_LEN).bin --no-diff 2>xs.log
 
 src/chacha20.s: src/host/chacha20_mod.c
-	$(CROSS_CC) -O3 -nostdlib -fno-builtin -march=$(ARCH) -Isrc -S -fverbose-asm src/host/chacha20_mod.c -o src/chacha20.s
+	$(CROSS_CC) -O3 -nostdlib $(CFLAGS) -march=$(ARCH) -Isrc -S -fverbose-asm src/host/chacha20_mod.c -o src/chacha20.s
 
 # -nostdlib -fno-builtin不调用标准库函数，不使用内建函数如memcpy
