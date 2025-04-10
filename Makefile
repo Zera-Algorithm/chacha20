@@ -57,7 +57,7 @@ xs-emu:
 .PHONY: validate validate-rtl clean run
 
 clean:
-	rm -f chacha20_linux-* chacha20_baremetal-* lib/*.o src/*.o src/host/gen_answer
+	rm -f chacha20_linux-* chacha20_baremetal-* lib/*.o src/*.o src/host/gen_answer src/chacha20.s
 
 validate: chacha20_linux-$(BENCH_LEN) answer/$(BENCH_LEN).txt
 	@$(LOADER) ./chacha20_linux-$(BENCH_LEN) | tail -n 16 | diff answer/$(BENCH_LEN).txt - && echo "Test passed"
@@ -69,9 +69,9 @@ validate-rtl: xs-emu chacha20_baremetal-$(BENCH_LEN).bin answer/$(BENCH_LEN).txt
 	./xs-emu -i ./chacha20_baremetal-$(BENCH_LEN).bin --no-diff 2>/dev/null | grep "ans\[" | diff answer/$(BENCH_LEN).txt - && echo "Test passed"
 
 run: xs-emu chacha20_baremetal-$(BENCH_LEN).bin
-	./xs-emu -i ./chacha20_baremetal-$(BENCH_LEN).bin --no-diff 2>/dev/null
+	./xs-emu -i ./chacha20_baremetal-$(BENCH_LEN).bin --no-diff 2>xs.log
 
 src/chacha20.s: src/host/chacha20_mod.c
-	riscv64-linux-gnu-gcc -O3 -nostdlib -fno-builtin -march=$(ARCH) -Isrc -S -fverbose-asm src/host/chacha20_mod.c -o src/chacha20.s
+	$(CROSS_CC) -O3 -nostdlib -fno-builtin -march=$(ARCH) -Isrc -S -fverbose-asm src/host/chacha20_mod.c -o src/chacha20.s
 
 # -nostdlib -fno-builtin不调用标准库函数，不使用内建函数如memcpy
