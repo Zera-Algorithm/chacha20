@@ -145,3 +145,71 @@ Vector Register Gather Instructions: 重新组织vector寄存器中的数据
 ```asm
 vrgather.vv vd, vs2, vs1, vm     # vd[i] = (vs1[i] >= VLMAX) ? 0 : vs2[vs1[i]];
 ```
+
+## 使用lmul
+
+lmul测试代码：
+```c
+u32 len = 8, actual_len;
+asm(
+    "vsetvli %0, %1, e32, m2" // lmul=2, 2个vector寄存器合并为一个
+    : "=r"(actual_len)
+    : "r"(len)
+);
+if (actual_len != 8) {
+    // 出错
+    return;
+}
+
+// 用vle32.v, vadd, vse32.v指令测试lmul是否生效
+u32 t[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+asm(
+    "move a0, %[input]\n" // a0 = &x[0], 数组地址
+    "vle32.v v0, (a0)\n" // 32-bit unit-stride load, load x[a]
+    "vadd.vv v2, v0, v0\n" // x[a] += x[b]
+    "move a0, %[output]\n"
+    "vse32.v v2, (a0)\n" // Store x[a]
+    :
+    : [input] "r"(t), [output] "r"(t)
+    : "a0", "memory", "v0", "v1", "v2"
+);
+
+#include <textio.h>
+for (int i = 0; i < 8; i++) {
+    print_long(t[i]);
+    print_s("\n");
+}
+return;
+```
+
+实际代码见 `chacha20_mod.c` 文件的`chacha20_multi_asm`函数。我们将8个元素并为一组，使用LMUL=2的vector去合并计算，取得了较高的性能提升。最终周期数为103743：
+
+```text
+The image is ./chacha20_baremetal-256.bin
+Test Start!
+Initial state generated for LEN=256 SEED=0xdeadbeef
+Cycles: 103743
+Final output: 
+ans[0] = 0xbe64d5a5
+ans[1] = 0x83c6c3fa
+ans[2] = 0xac710378
+ans[3] = 0x858f0082
+ans[4] = 0x207f2dc2
+ans[5] = 0xeb5ee49e
+ans[6] = 0x4f801257
+ans[7] = 0x2e4f03c9
+ans[8] = 0x74b07deb
+ans[9] = 0x3e6dde54
+ans[10] = 0x6dd3ddad
+ans[11] = 0xee18cf6c
+ans[12] = 0x053765e6
+ans[13] = 0x79f814eb
+ans[14] = 0x40b18db8
+ans[15] = 0xa299c057
+Core 0: HIT GOOD TRAP at pc = 0x80010002
+Core-0 instrCnt = 143898, cycleCnt = 133143, IPC = 1.080778
+Seed=0 Guest cycle spent: 133147 (this will be different from cycleCnt if emu loads a snapshot)
+Host time spent: 97186ms
+```
+
+
