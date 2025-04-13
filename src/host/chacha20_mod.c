@@ -358,117 +358,174 @@ void chacha20_multi_asm(u32 *output, const u32 *input) {
         // x[a] += x[b], x[d] = ROTATE((x[d] ^ x[a]), 8), \
         // x[c] += x[d], x[b] = ROTATE((x[b] ^ x[c]), 7)  )
 
-        "vadd.vv v0, v0, v8\n" // x[a] += x[b]
-        "vxor.vv v24, v24, v0\n" // x[d] ^= x[a]
-        "vrol.vx v24, v24, a0\n" // x[d] = ROTATE((x[d] ^ x[a]),16)
-        "vadd.vv v16, v16, v24\n" // x[c] += x[d]
-        "vxor.vv v8, v8, v16\n" // x[b] ^= x[c]
-        "vrol.vx v8, v8, a1\n" // x[b] = ROTATE((x[b] ^ x[c]),12)
-        "vadd.vv v0, v0, v8\n" // x[a] += x[b]
-        "vxor.vv v24, v24, v0\n" // x[d] ^= x[a]
-        "vrol.vx v24, v24, a2\n" // x[d] = ROTATE((x[d] ^ x[a]), 8)
-        "vadd.vv v16, v16, v24\n" // x[c] += x[d]
-        "vxor.vv v8, v8, v16\n" // x[b] ^= x[c]
-        "vrol.vx v8, v8, a3\n" // x[b] = ROTATE((x[b] ^ x[c]), 7)
+        ////////////////////////////////////////////////////////////////
+        // 第一组指令（所有QUARTERROUND的第一次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v0, v0, v8\n"      // Q0: x[0] += x[1]
+        "vadd.vv v2, v2, v10\n"     // Q1: x[1] += x[5]
+        "vadd.vv v4, v4, v12\n"     // Q2: x[2] += x[6]
+        "vadd.vv v6, v6, v14\n"     // Q3: x[3] += x[7]
+
+        // 4个vxor（向量异或）
+        "vxor.vv v24, v24, v0\n"    // Q0: x[3] ^= x[0]
+        "vxor.vv v26, v26, v2\n"    // Q1: x[13] ^= x[1]
+        "vxor.vv v28, v28, v4\n"    // Q2: x[14] ^= x[2]
+        "vxor.vv v30, v30, v6\n"    // Q3: x[15] ^= x[3]
+
+        // 4个vrol（循环左移）
+        "vrol.vx v24, v24, a0\n"    // Q0: ROTL(16)
+        "vrol.vx v26, v26, a0\n"    // Q1: ROTL(16)
+        "vrol.vx v28, v28, a0\n"    // Q2: ROTL(16)
+        "vrol.vx v30, v30, a0\n"    // Q3: ROTL(16)
+
+        ////////////////////////////////////////////////////////////////
+        // 第二组指令（所有QUARTERROUND的第二次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v16, v16, v24\n"   // Q0: x[2] += x[3]
+        "vadd.vv v18, v18, v26\n"   // Q1: x[9] += x[13]
+        "vadd.vv v20, v20, v28\n"   // Q2: x[10] += x[14]
+        "vadd.vv v22, v22, v30\n"   // Q3: x[11] += x[15]
+
+        // 4个vxor（向量异或）
+        "vxor.vv v8, v8, v16\n"     // Q0: x[1] ^= x[2]
+        "vxor.vv v10, v10, v18\n"   // Q1: x[5] ^= x[9]
+        "vxor.vv v12, v12, v20\n"   // Q2: x[6] ^= x[10]
+        "vxor.vv v14, v14, v22\n"   // Q3: x[7] ^= x[11]
+
+        // 4个vrol（循环左移）
+        "vrol.vx v8, v8, a1\n"      // Q0: ROTL(12)
+        "vrol.vx v10, v10, a1\n"    // Q1: ROTL(12)
+        "vrol.vx v12, v12, a1\n"    // Q2: ROTL(12)
+        "vrol.vx v14, v14, a1\n"    // Q3: ROTL(12)
+
+        ////////////////////////////////////////////////////////////////
+        // 第三组指令（所有QUARTERROUND的第三次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v0, v0, v8\n"      // Q0: x[0] += x[1]
+        "vadd.vv v2, v2, v10\n"     // Q1: x[1] += x[5]
+        "vadd.vv v4, v4, v12\n"     // Q2: x[2] += x[6]
+        "vadd.vv v6, v6, v14\n"     // Q3: x[3] += x[7]
+
+        // 4个vxor（向量异或）
+        "vxor.vv v24, v24, v0\n"    // Q0: x[3] ^= x[0]
+        "vxor.vv v26, v26, v2\n"    // Q1: x[13] ^= x[1]
+        "vxor.vv v28, v28, v4\n"    // Q2: x[14] ^= x[2]
+        "vxor.vv v30, v30, v6\n"    // Q3: x[15] ^= x[3]
+
+        // 4个vrol（循环左移）
+        "vrol.vx v24, v24, a2\n"    // Q0: ROTL(8)
+        "vrol.vx v26, v26, a2\n"    // Q1: ROTL(8)
+        "vrol.vx v28, v28, a2\n"    // Q2: ROTL(8)
+        "vrol.vx v30, v30, a2\n"    // Q3: ROTL(8)
+
+        ////////////////////////////////////////////////////////////////
+        // 第四组指令（所有QUARTERROUND的第四次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v16, v16, v24\n"   // Q0: x[2] += x[3]
+        "vadd.vv v18, v18, v26\n"   // Q1: x[9] += x[13]
+        "vadd.vv v20, v20, v28\n"   // Q2: x[10] += x[14]
+        "vadd.vv v22, v22, v30\n"   // Q3: x[11] += x[15]
+
+        // 4个vxor（向量异或）
+        "vxor.vv v8, v8, v16\n"     // Q0: x[1] ^= x[2]
+        "vxor.vv v10, v10, v18\n"   // Q1: x[5] ^= x[9]
+        "vxor.vv v12, v12, v20\n"   // Q2: x[6] ^= x[10]
+        "vxor.vv v14, v14, v22\n"   // Q3: x[7] ^= x[11]
+
+        // 4个vrol（循环左移）
+        "vrol.vx v8, v8, a3\n"      // Q0: ROTL(7)
+        "vrol.vx v10, v10, a3\n"    // Q1: ROTL(7)
+        "vrol.vx v12, v12, a3\n"    // Q2: ROTL(7)
+        "vrol.vx v14, v14, a3\n"    // Q3: ROTL(7)
 
         // 第二个QUARTERROUND
-        // QUARTERROUND(1,5,9,13) -> a=1(v2), b=5(v10), c=9(v18), d=13(v26)
-        "vadd.vv v2, v2, v10\n"      // x[a] += x[b]
-        "vxor.vv v26, v26, v2\n"     // x[d] ^= x[a]
-        "vrol.vx v26, v26, a0\n"     // ROTATE(16)
-        "vadd.vv v18, v18, v26\n"    // x[c] += x[d]
-        "vxor.vv v10, v10, v18\n"    // x[b] ^= x[c]
-        "vrol.vx v10, v10, a1\n"     // ROTATE(12)
-        "vadd.vv v2, v2, v10\n"      // x[a] += x[b]
-        "vxor.vv v26, v26, v2\n"     // x[d] ^= x[a]
-        "vrol.vx v26, v26, a2\n"     // ROTATE(8)
-        "vadd.vv v18, v18, v26\n"    // x[c] += x[d]
-        "vxor.vv v10, v10, v18\n"    // x[b] ^= x[c]
-        "vrol.vx v10, v10, a3\n"     // ROTATE(7)
+        ////////////////////////////////////////////////////////////////
+        // 第一组指令（所有QUARTERROUND的第一次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v0, v0, v10\n"     // Q0: x[0] += x[5]
+        "vadd.vv v2, v2, v12\n"     // Q1: x[1] += x[6]
+        "vadd.vv v4, v4, v14\n"     // Q2: x[2] += x[7]
+        "vadd.vv v6, v6, v8\n"      // Q3: x[3] += x[4]
 
-        // QUARTERROUND(2,6,10,14) -> a=2(v4), b=6(v12), c=10(v20), d=14(v28)
-        "vadd.vv v4, v4, v12\n"      // x[a] += x[b]
-        "vxor.vv v28, v28, v4\n"     // x[d] ^= x[a]
-        "vrol.vx v28, v28, a0\n"     // ROTATE(16)
-        "vadd.vv v20, v20, v28\n"    // x[c] += x[d]
-        "vxor.vv v12, v12, v20\n"    // x[b] ^= x[c]
-        "vrol.vx v12, v12, a1\n"     // ROTATE(12)
-        "vadd.vv v4, v4, v12\n"      // x[a] += x[b]
-        "vxor.vv v28, v28, v4\n"     // x[d] ^= x[a]
-        "vrol.vx v28, v28, a2\n"     // ROTATE(8)
-        "vadd.vv v20, v20, v28\n"    // x[c] += x[d]
-        "vxor.vv v12, v12, v20\n"    // x[b] ^= x[c]
-        "vrol.vx v12, v12, a3\n"     // ROTATE(7)
+        // 4个vxor（向量异或）
+        "vxor.vv v30, v30, v0\n"    // Q0: x[15] ^= x[0]
+        "vxor.vv v24, v24, v2\n"    // Q1: x[12] ^= x[1]
+        "vxor.vv v26, v26, v4\n"    // Q2: x[13] ^= x[2]
+        "vxor.vv v28, v28, v6\n"    // Q3: x[14] ^= x[3]
 
-        // QUARTERROUND(3,7,11,15) -> a=3(v6), b=7(v14), c=11(v22), d=15(v30)
-        "vadd.vv v6, v6, v14\n"      // x[a] += x[b]
-        "vxor.vv v30, v30, v6\n"     // x[d] ^= x[a]
-        "vrol.vx v30, v30, a0\n"     // ROTATE(16)
-        "vadd.vv v22, v22, v30\n"    // x[c] += x[d]
-        "vxor.vv v14, v14, v22\n"    // x[b] ^= x[c]
-        "vrol.vx v14, v14, a1\n"     // ROTATE(12)
-        "vadd.vv v6, v6, v14\n"      // x[a] += x[b]
-        "vxor.vv v30, v30, v6\n"     // x[d] ^= x[a]
-        "vrol.vx v30, v30, a2\n"     // ROTATE(8)
-        "vadd.vv v22, v22, v30\n"    // x[c] += x[d]
-        "vxor.vv v14, v14, v22\n"    // x[b] ^= x[c]
-        "vrol.vx v14, v14, a3\n"     // ROTATE(7)
+        // 4个vrol（循环左移-16）
+        "vrol.vx v30, v30, a0\n"    // Q0: ROTL(16)
+        "vrol.vx v24, v24, a0\n"    // Q1: ROTL(16)
+        "vrol.vx v26, v26, a0\n"    // Q2: ROTL(16)
+        "vrol.vx v28, v28, a0\n"    // Q3: ROTL(16)
 
-        //. QUARTERROUND(0,5,10,15) -> a=0(v0), b=5(v10), c=10(v20), d=15(v30)
-        "vadd.vv v0, v0, v10\n"      // x[a] += x[b]
-        "vxor.vv v30, v30, v0\n"     // x[d] ^= x[a]
-        "vrol.vx v30, v30, a0\n"     // ROTATE(16)
-        "vadd.vv v20, v20, v30\n"    // x[c] += x[d]
-        "vxor.vv v10, v10, v20\n"    // x[b] ^= x[c]
-        "vrol.vx v10, v10, a1\n"     // ROTATE(12)
-        "vadd.vv v0, v0, v10\n"      // x[a] += x[b]
-        "vxor.vv v30, v30, v0\n"     // x[d] ^= x[a]
-        "vrol.vx v30, v30, a2\n"     // ROTATE(8)
-        "vadd.vv v20, v20, v30\n"    // x[c] += x[d]
-        "vxor.vv v10, v10, v20\n"    // x[b] ^= x[c]
-        "vrol.vx v10, v10, a3\n"     // ROTATE(7)
+        ////////////////////////////////////////////////////////////////
+        // 第二组指令（所有QUARTERROUND的第二次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v20, v20, v30\n"   // Q0: x[10] += x[15]
+        "vadd.vv v22, v22, v24\n"   // Q1: x[11] += x[12]
+        "vadd.vv v16, v16, v26\n"   // Q2: x[8] += x[13]
+        "vadd.vv v18, v18, v28\n"   // Q3: x[9] += x[14]
 
-        //. QUARTERROUND(1,6,11,12) -> a=1(v2), b=6(v12), c=11(v22), d=12(v24)
-        "vadd.vv v2, v2, v12\n"      // x[a] += x[b]
-        "vxor.vv v24, v24, v2\n"     // x[d] ^= x[a]
-        "vrol.vx v24, v24, a0\n"     // ROTATE(16)
-        "vadd.vv v22, v22, v24\n"    // x[c] += x[d]
-        "vxor.vv v12, v12, v22\n"    // x[b] ^= x[c]
-        "vrol.vx v12, v12, a1\n"     // ROTATE(12)
-        "vadd.vv v2, v2, v12\n"      // x[a] += x[b]
-        "vxor.vv v24, v24, v2\n"     // x[d] ^= x[a]
-        "vrol.vx v24, v24, a2\n"     // ROTATE(8)
-        "vadd.vv v22, v22, v24\n"    // x[c] += x[d]
-        "vxor.vv v12, v12, v22\n"    // x[b] ^= x[c]
-        "vrol.vx v12, v12, a3\n"     // ROTATE(7)
+        // 4个vxor（向量异或）
+        "vxor.vv v10, v10, v20\n"   // Q0: x[5] ^= x[10]
+        "vxor.vv v12, v12, v22\n"   // Q1: x[6] ^= x[11]
+        "vxor.vv v14, v14, v16\n"   // Q2: x[7] ^= x[8]
+        "vxor.vv v8, v8, v18\n"     // Q3: x[4] ^= x[9]
 
-        //. QUARTERROUND(2,7,8,13) -> a=2(v4), b=7(v14), c=8(v16), d=13(v26)
-        "vadd.vv v4, v4, v14\n"      // x[a] += x[b]
-        "vxor.vv v26, v26, v4\n"     // x[d] ^= x[a]
-        "vrol.vx v26, v26, a0\n"     // ROTATE(16)
-        "vadd.vv v16, v16, v26\n"    // x[c] += x[d]
-        "vxor.vv v14, v14, v16\n"    // x[b] ^= x[c]
-        "vrol.vx v14, v14, a1\n"     // ROTATE(12)
-        "vadd.vv v4, v4, v14\n"      // x[a] += x[b]
-        "vxor.vv v26, v26, v4\n"     // x[d] ^= x[a]
-        "vrol.vx v26, v26, a2\n"     // ROTATE(8)
-        "vadd.vv v16, v16, v26\n"    // x[c] += x[d]
-        "vxor.vv v14, v14, v16\n"    // x[b] ^= x[c]
-        "vrol.vx v14, v14, a3\n"     // ROTATE(7)
+        // 4个vrol（循环左移-12）
+        "vrol.vx v10, v10, a1\n"    // Q0: ROTL(12)
+        "vrol.vx v12, v12, a1\n"    // Q1: ROTL(12)
+        "vrol.vx v14, v14, a1\n"    // Q2: ROTL(12)
+        "vrol.vx v8, v8, a1\n"      // Q3: ROTL(12)
 
-        //. QUARTERROUND(3,4,9,14) -> a=3(v6), b=4(v8), c=9(v18), d=14(v28)
-        "vadd.vv v6, v6, v8\n"       // x[a] += x[b]
-        "vxor.vv v28, v28, v6\n"     // x[d] ^= x[a]
-        "vrol.vx v28, v28, a0\n"     // ROTATE(16)
-        "vadd.vv v18, v18, v28\n"    // x[c] += x[d]
-        "vxor.vv v8, v8, v18\n"      // x[b] ^= x[c]
-        "vrol.vx v8, v8, a1\n"       // ROTATE(12)
-        "vadd.vv v6, v6, v8\n"       // x[a] += x[b]
-        "vxor.vv v28, v28, v6\n"     // x[d] ^= x[a]
-        "vrol.vx v28, v28, a2\n"     // ROTATE(8)
-        "vadd.vv v18, v18, v28\n"    // x[c] += x[d]
-        "vxor.vv v8, v8, v18\n"      // x[b] ^= x[c]
-        "vrol.vx v8, v8, a3\n"       // ROTATE(7)
+        ////////////////////////////////////////////////////////////////
+        // 第三组指令（所有QUARTERROUND的第三次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v0, v0, v10\n"     // Q0: x[0] += x[5]
+        "vadd.vv v2, v2, v12\n"     // Q1: x[1] += x[6]
+        "vadd.vv v4, v4, v14\n"     // Q2: x[2] += x[7]
+        "vadd.vv v6, v6, v8\n"      // Q3: x[3] += x[4]
+
+        // 4个vxor（向量异或）
+        "vxor.vv v30, v30, v0\n"    // Q0: x[15] ^= x[0]
+        "vxor.vv v24, v24, v2\n"    // Q1: x[12] ^= x[1]
+        "vxor.vv v26, v26, v4\n"    // Q2: x[13] ^= x[2]
+        "vxor.vv v28, v28, v6\n"    // Q3: x[14] ^= x[3]
+
+        // 4个vrol（循环左移-8）
+        "vrol.vx v30, v30, a2\n"    // Q0: ROTL(8)
+        "vrol.vx v24, v24, a2\n"    // Q1: ROTL(8)
+        "vrol.vx v26, v26, a2\n"    // Q2: ROTL(8)
+        "vrol.vx v28, v28, a2\n"    // Q3: ROTL(8)
+
+        ////////////////////////////////////////////////////////////////
+        // 第四组指令（所有QUARTERROUND的第四次vadd/vxor/vrol）
+        ////////////////////////////////////////////////////////////////
+        // 4个vadd（纵向加法）
+        "vadd.vv v20, v20, v30\n"   // Q0: x[10] += x[15]
+        "vadd.vv v22, v22, v24\n"   // Q1: x[11] += x[12]
+        "vadd.vv v16, v16, v26\n"   // Q2: x[8] += x[13]
+        "vadd.vv v18, v18, v28\n"   // Q3: x[9] += x[14]
+
+        // 4个vxor（向量异或）
+        "vxor.vv v10, v10, v20\n"   // Q0: x[5] ^= x[10]
+        "vxor.vv v12, v12, v22\n"   // Q1: x[6] ^= x[11]
+        "vxor.vv v14, v14, v16\n"   // Q2: x[7] ^= x[8]
+        "vxor.vv v8, v8, v18\n"     // Q3: x[4] ^= x[9]
+
+        // 4个vrol（循环左移-7）
+        "vrol.vx v10, v10, a3\n"    // Q0: ROTL(7)
+        "vrol.vx v12, v12, a3\n"    // Q1: ROTL(7)
+        "vrol.vx v14, v14, a3\n"    // Q2: ROTL(7)
+        "vrol.vx v8, v8, a3\n"      // Q3: ROTL(7)
 
         "addi t0, t0, -1\n" // t0--
         "bnez t0, 1b\n" // if (t0 != 0) goto loop

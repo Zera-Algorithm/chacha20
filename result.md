@@ -212,4 +212,55 @@ Seed=0 Guest cycle spent: 133147 (this will be different from cycleCnt if emu lo
 Host time spent: 97186ms
 ```
 
+## 无数据依赖的vector指令合并在一起
 
+我们发现前4个QUARTERROUND的每一条指令之间实际上没有数据依赖，因此我们可以将相似的指令合并，比如将vadd, vxor, vrol分别合并，这样在运行时可以同时发射同时执行，效率非常高。如下所示：
+
+```
+// 4个vadd（纵向加法）
+"vadd.vv v0, v0, v8\n"      // Q0: x[0] += x[1]
+"vadd.vv v2, v2, v10\n"     // Q1: x[1] += x[5]
+"vadd.vv v4, v4, v12\n"     // Q2: x[2] += x[6]
+"vadd.vv v6, v6, v14\n"     // Q3: x[3] += x[7]
+
+// 4个vxor（向量异或）
+"vxor.vv v24, v24, v0\n"    // Q0: x[3] ^= x[0]
+"vxor.vv v26, v26, v2\n"    // Q1: x[13] ^= x[1]
+"vxor.vv v28, v28, v4\n"    // Q2: x[14] ^= x[2]
+"vxor.vv v30, v30, v6\n"    // Q3: x[15] ^= x[3]
+
+// 4个vrol（循环左移）
+"vrol.vx v24, v24, a0\n"    // Q0: ROTL(16)
+"vrol.vx v26, v26, a0\n"    // Q1: ROTL(16)
+"vrol.vx v28, v28, a0\n"    // Q2: ROTL(16)
+"vrol.vx v30, v30, a0\n"    // Q3: ROTL(16)
+```
+
+后4个QUARTERROUND的指令相互之间也没有数据依赖，因而也可以合并。凭借此，其执行的性能结果为：
+```
+Cycles: 73833
+Final output: 
+ans[0] = 0xbe64d5a5
+ans[1] = 0x83c6c3fa
+ans[2] = 0xac710378
+ans[3] = 0x858f0082
+ans[4] = 0x207f2dc2
+ans[5] = 0xeb5ee49e
+ans[6] = 0x4f801257
+ans[7] = 0x2e4f03c9
+ans[8] = 0x74b07deb
+ans[9] = 0x3e6dde54
+ans[10] = 0x6dd3ddad
+ans[11] = 0xee18cf6c
+ans[12] = 0x053765e6
+ans[13] = 0x79f814eb
+ans[14] = 0x40b18db8
+ans[15] = 0xa299c057
+Core 0: HIT GOOD TRAP at pc = 0x80010002
+Core-0 instrCnt = 142284, cycleCnt = 103200, IPC = 1.378721
+Seed=0 Guest cycle spent: 103204 (this will be different from cycleCnt if emu loads a snapshot)
+Host time spent: 79091ms
+```
+
+周期数为73833, 相比不合并的（103743cycles），减少了28%的运行周期数！
+相比baseline的运行时间减少了48.5%！
