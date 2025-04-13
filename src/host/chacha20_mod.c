@@ -334,38 +334,13 @@ void chacha20_multi_asm(u32 *output, const u32 *input) {
     asm(
         // 加载输入
         "move a0, %[input]\n" // a0 = &x[0], 数组地址
-        "vle32.v v0, (a0)\n" // 64-bit unit-stride load, load x[a]
-        "addi a0, a0, 32\n" // 增加256bit地址计数
-        "vle32.v v2, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v4, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v6, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v8, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v10, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v12, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v14, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v16, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v18, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v20, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v22, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v24, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v26, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v28, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vle32.v v30, (a0)\n"
-        "addi a0, a0, 32\n"
+        "vl8re32.v v0, (a0)\n" // 一次加载8个寄存器(v0~v7)的值，共128个字节
+        "addi a0, a0, 128\n" // 增加128byte地址计数
+        "vl8re32.v v8, (a0)\n"
+        "addi a0, a0, 128\n"
+        "vl8re32.v v16, (a0)\n"
+        "addi a0, a0, 128\n"
+        "vl8re32.v v24, (a0)\n"
 
         // 提前加载 ROTATE 的标量参数
         "li a0, 16\n"
@@ -500,38 +475,13 @@ void chacha20_multi_asm(u32 *output, const u32 *input) {
         // 结束循环
 
         "move a0, %[output]\n"
-        "vse32.v v0, (a0)\n" // 64-bit unit-stride load, load x[a]
-        "addi a0, a0, 32\n" // 增加256bit地址计数
-        "vse32.v v2, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v4, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v6, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v8, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v10, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v12, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v14, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v16, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v18, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v20, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v22, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v24, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v26, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v28, (a0)\n"
-        "addi a0, a0, 32\n"
-        "vse32.v v30, (a0)\n"
-        "addi a0, a0, 32\n"
+        "vs8r.v v0, (a0)\n" // 一次存储8个寄存器(v0~v7)的值，共128个字节
+        "addi a0, a0, 128\n" // 增加128byte地址计数
+        "vs8r.v v8, (a0)\n"
+        "addi a0, a0, 128\n"
+        "vs8r.v v16, (a0)\n"
+        "addi a0, a0, 128\n"
+        "vs8r.v v24, (a0)\n"
         :
         : [input] "r"(input), [output] "r"(output)
         : "memory", "a0", "a1", "a2", "a3", "t0", "v0", "v2", "v4", "v6", "v8", "v10", "v12", "v14", "v16", "v18", "v20", "v22", "v24", "v26", "v28", "v30"
